@@ -61,8 +61,6 @@ jobs:
           --add-data "7z-x64.dll;." `
           --add-data "7z-x86.exe;." `
           --add-data "7z-x86.dll;." `
-          --add-data "7z-arm64.exe;." `
-          --add-data "7z-arm64.dll;." `
           --uac-admin gui-py38-win7.py
           
     - name: Rename executable (${{ matrix.arch }})
