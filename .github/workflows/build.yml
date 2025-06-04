@@ -1,0 +1,136 @@
+name: Build Reunion Downloader Executables
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  extract_versions:
+    name: "Extract Version"
+    runs-on: ubuntu-latest
+    outputs:
+      version_py311: ${{ steps.extract_py311.outputs.version }}
+      version_py38: ${{ steps.extract_py38.outputs.version }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Extract version from gui-py311.py
+      id: extract_py311
+      run: |
+        version=$(grep -oP 'CURRENT_VERSION = "\K[^"]+' gui-py311.py)
+        echo "version=$version" >> $GITHUB_OUTPUT
+        
+    - name: Extract version from gui-py38-win7.py
+      id: extract_py38
+      run: |
+        version=$(grep -oP 'CURRENT_VERSION = "\K[^"]+' gui-py38-win7.py)
+        echo "version=$version" >> $GITHUB_OUTPUT
+
+  windows7:
+    name: "Build For Windows7"
+    needs: extract_versions
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        arch: [x64, x86]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Python 3.8 (${{ matrix.arch }})
+      run: |
+        $installer = if ("${{ matrix.arch }}" -eq "x86") { "python-3.8.10.exe" } else { "python-3.8.10-amd64.exe" }
+        Invoke-WebRequest "https://www.python.org/ftp/python/3.8.10/$installer" -OutFile python-installer.exe
+        Start-Process python-installer.exe -ArgumentList "/quiet", "InstallAllUsers=1", "PrependPath=1" -Wait
+        Remove-Item python-installer.exe
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller requests packaging
+        
+    - name: Build executable (${{ matrix.arch }})
+      run: |
+        pyinstaller --noconsole --onefile `
+          --icon=sgw.ico `
+          --hidden-import=requests `
+          --hidden-import=packaging `
+          --add-data "sgw.ico;." `
+          --add-data "7z-x64.exe;." `
+          --add-data "7z-x64.dll;." `
+          --add-data "7z-x86.exe;." `
+          --add-data "7z-x86.dll;." `
+          --add-data "7z-arm64.exe;." `
+          --add-data "7z-arm64.dll;." `
+          --uac-admin gui-py38-win7.py
+          
+    - name: Rename executable (${{ matrix.arch }})
+      run: |
+        $version = "${{ needs.extract_versions.outputs.version_py38 }}"
+        $newName = "Reunion-Downloader-Win7-$version-${{ matrix.arch }}.exe"
+        Rename-Item -Path "dist\gui-py38-win7.exe" -NewName $newName
+        echo "RENAMED_FILE=$newName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        
+    - name: Upload artifact (${{ matrix.arch }})
+      uses: actions/upload-artifact@v4
+      with:
+        name: win7-${{ matrix.arch }}
+        path: dist\${{ env.RENAMED_FILE }}
+
+  windows10:
+    name: "Build For Windows8-11"
+    needs: extract_versions
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-2025
+          - arch: x86
+            runner: windows-2025
+          - arch: arm64
+            runner: windows-11-arm
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Python 3.11 (${{ matrix.arch }})
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        architecture: ${{ matrix.arch }}
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller requests packaging
+        
+    - name: Build executable (${{ matrix.arch }})
+      run: |
+        pyinstaller --noconsole --onefile `
+          --icon=lty1.ico `
+          --hidden-import=requests `
+          --hidden-import=packaging `
+          --add-data "lty1.ico;." `
+          --add-data "7z-x64.exe;." `
+          --add-data "7z-x64.dll;." `
+          --add-data "7z-x86.exe;." `
+          --add-data "7z-x86.dll;." `
+          --add-data "7z-arm64.exe;." `
+          --add-data "7z-arm64.dll;." `
+          --uac-admin gui-py311.py
+          
+    - name: Rename executable (${{ matrix.arch }})
+      run: |
+        $version = "${{ needs.extract_versions.outputs.version_py311 }}"
+        $suffix = if ("${{ matrix.arch }}" -eq "arm64") { "arm64" } else { "${{ matrix.arch }}" }
+        $newName = "Reunion-Downloader-$version-$suffix.exe"
+        Rename-Item -Path "dist\gui-py311.exe" -NewName $newName
+        echo "RENAMED_FILE=$newName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        
+    - name: Upload artifact (${{ matrix.arch }})
+      uses: actions/upload-artifact@v4
+      with:
+        name: win10-${{ matrix.arch }}
+        path: dist\${{ env.RENAMED_FILE }}
