@@ -26,8 +26,6 @@ def get_system_architecture():
         return 'x86'
     elif 'amd64' in arch or 'x86_64' in arch:
         return 'x64'
-    # elif 'arm64' in arch:
-    #     return 'arm64'
     else:
         raise ValueError(f"Unsupported system architecture: {arch}")
 
@@ -72,8 +70,8 @@ def delete_7z_files():
 extract_7z_files()
 
 # 配置参数
-CURRENT_VERSION = "1.0.4"  # 当前版本号
-CURRENT_VER_CODE = "1041"  # 当前版本代码
+CURRENT_VERSION = "1.0.5"  # 当前版本号
+CURRENT_VER_CODE = "1051"  # 当前版本代码
 HEADERS = {"User-Agent": f"RF-Py1-Api/{CURRENT_VERSION}"}  # 设置UA
 DEFAULT_DOWNLOAD_DIR = os.path.join(os.getcwd(), "RF-Downloader")  # 默认下载目录为当前目录下的 RF-Downloader 文件夹
 ICON_PATH = resource_path("sgw.ico")   # 应用图标
@@ -542,7 +540,16 @@ class DownloaderApp:
 
     def check_for_updates(self, user_triggered=False):
         try:
-            response = requests.get("https://api17-2e40-yzlty.ru2023.top/version-win7.ini", headers=HEADERS, timeout=10)
+            # 根据系统架构选择不同的 version.ini 文件
+            if SYSTEM_ARCH == 'x86':
+                version_file = "version-win7-1.ini"
+            elif SYSTEM_ARCH == 'x64':
+                version_file = "version-win7.ini"
+            else:
+                version_file = "version-win7.ini"  # 默认使用 version-win7.ini
+
+            url = f"https://api17-2e40-yzlty.ru2023.top/{version_file}"
+            response = requests.get(url, headers=HEADERS, timeout=10)
             response.raise_for_status()
 
             latest_ver = None
@@ -591,7 +598,7 @@ class DownloaderApp:
         
         # 设置和保存窗口位置
         self.set_window_position(self.update_dialog, "update")
-        self.update_dialog.protocol("WM_DELETE_WINDOW", lambda: self.close_window(self.update_dialog, "update"))
+        self.update_dialog.protocol("WM_DELETE_WINDOW", lambda: self.on_child_closing(self.update_dialog, "update"))
 
         self.set_window_icon(self.update_dialog)
 
@@ -639,7 +646,7 @@ class DownloaderApp:
             
             # 设置和保存窗口位置
             self.set_window_position(self.download_window, "download")
-            self.download_window.protocol("WM_DELETE_WINDOW", lambda: self.close_window(self.download_window, "download"))
+            self.download_window.protocol("WM_DELETE_WINDOW", lambda: self.on_child_closing(self.download_window, "download"))
 
             self.set_window_icon(self.download_window)
 
@@ -717,7 +724,7 @@ class DownloaderApp:
             
             # 设置和保存窗口位置
             self.set_window_position(self.download_window, "download")
-            self.download_window.protocol("WM_DELETE_WINDOW", lambda: self.close_window(self.download_window, "download"))
+            self.download_window.protocol("WM_DELETE_WINDOW", lambda: self.on_child_closing(self.download_window, "download"))
 
             self.set_window_icon(self.download_window)
 

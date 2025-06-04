@@ -72,8 +72,8 @@ def delete_7z_files():
 extract_7z_files()
 
 # 配置参数
-CURRENT_VERSION = "1.0.4"  # 当前版本号
-CURRENT_VER_CODE = "1041"  # 当前版本代码
+CURRENT_VERSION = "1.0.5"  # 当前版本号
+CURRENT_VER_CODE = "1051"  # 当前版本代码
 HEADERS = {"User-Agent": f"RF-Py1-Api/{CURRENT_VERSION}"}  # 设置UA
 DEFAULT_DOWNLOAD_DIR = os.path.join(os.getcwd(), "RF-Downloader")  # 默认下载目录为当前目录下的 RF-Downloader 文件夹
 ICON_PATH = resource_path("lty1.ico")   # 应用图标
@@ -542,7 +542,18 @@ class DownloaderApp:
 
     def check_for_updates(self, user_triggered=False):
         try:
-            response = requests.get("https://api17-2e40-yzlty.ru2023.top/version.ini", headers=HEADERS, timeout=10)
+            # 根据系统架构选择不同的 version.ini 文件
+            if SYSTEM_ARCH == 'x86':
+                version_file = "version-32.ini"
+            elif SYSTEM_ARCH == 'x64':
+                version_file = "version.ini"
+            elif SYSTEM_ARCH == 'arm64':
+                version_file = "version-64.ini"
+            else:
+                version_file = "version.ini"  # 默认使用 version.ini
+
+            url = f"https://api17-2e40-yzlty.ru2023.top/{version_file}"
+            response = requests.get(url, headers=HEADERS, timeout=10)
             response.raise_for_status()
 
             latest_ver = None
