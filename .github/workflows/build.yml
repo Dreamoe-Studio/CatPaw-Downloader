@@ -75,8 +75,10 @@ jobs:
           --hidden-import=requests `
           --hidden-import=packaging `
           --add-data "sgw.ico;." `
-          --add-data "7z.exe;." `
-          --add-data "7z.dll;." `
+          --add-data "7z-x64.exe;." `
+          --add-data "7z-x64.dll;." `
+          --add-data "7z-x86.exe;." `
+          --add-data "7z-x86.dll;." `
           --uac-admin gui-py38-win7.py
           
     - name: Rename executable (${{ matrix.arch }})
@@ -127,8 +129,12 @@ jobs:
           --hidden-import=requests `
           --hidden-import=packaging `
           --add-data "lty1.ico;." `
-          --add-data "7z.exe;." `
-          --add-data "7z.dll;." `
+          --add-data "7z-x64.exe;." `
+          --add-data "7z-x64.dll;." `
+          --add-data "7z-x86.exe;." `
+          --add-data "7z-x86.dll;." `
+          --add-data "7z-arm64.exe;." `
+          --add-data "7z-arm64.dll;." `
           --uac-admin gui-py311.py
           
     - name: Rename executable (${{ matrix.arch }})
