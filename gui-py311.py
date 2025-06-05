@@ -44,7 +44,7 @@ def extract_7z_files():
         # 获取资源文件路径（从打包的 .exe 文件中提取）
         src_path = resource_path(file)
         # 目标路径（当前目录）
-        dst_path = os.path.join(current_dir, file.replace(f"-{SYSTEM_ARCH}", ""))
+        dst_path = os.path.join(current_dir)
         # 如果文件已存在，先删除
         if os.path.exists(dst_path):
             os.remove(dst_path)
@@ -72,8 +72,8 @@ def delete_7z_files():
 extract_7z_files()
 
 # 配置参数
-CURRENT_VERSION = "1.0.5"  # 当前版本号
-CURRENT_VER_CODE = "1051"  # 当前版本代码
+CURRENT_VERSION = "1.0.6"  # 当前版本号
+CURRENT_VER_CODE = "1061"  # 当前版本代码
 HEADERS = {"User-Agent": f"RF-Py1-Api/{CURRENT_VERSION}"}  # 设置UA
 DEFAULT_DOWNLOAD_DIR = os.path.join(os.getcwd(), "RF-Downloader")  # 默认下载目录为当前目录下的 RF-Downloader 文件夹
 ICON_PATH = resource_path("lty1.ico")   # 应用图标
@@ -152,6 +152,7 @@ class DownloaderApp:
         self.client_dir = tk.StringVar(value="")
         self.download_dir = tk.StringVar(value="")
         self.auto_update_value = False  # 用于保存自动更新的勾选状态
+        self.auto_thread_value = False  # 用于保存自动选择线程数的勾选状态
 
         # 窗口位置配置
         self.window_positions = {}
@@ -211,6 +212,8 @@ class DownloaderApp:
                             self.path_var.set(self.client_dir.get())
                     if "auto_update" in user_paths:
                         self.auto_update_value = user_paths["auto_update"]
+                    if "auto_thread" in user_paths:
+                        self.auto_thread_value = user_paths["auto_thread"]
         except Exception as e:
             print(f"加载配置失败: {str(e)}")
 
@@ -234,7 +237,8 @@ class DownloaderApp:
             user_paths = {
                 "download_dir": self.download_dir.get() if os.path.exists(self.download_dir.get()) else "",
                 "client_dir": self.client_dir.get() if os.path.exists(self.client_dir.get()) and os.path.exists(os.path.join(self.client_dir.get(), "Reunion.exe")) else "",
-                "auto_update": self.auto_update_value
+                "auto_update": self.auto_update_value,
+                "auto_thread": self.auto_thread_value
             }
 
             config = {
@@ -334,8 +338,18 @@ class DownloaderApp:
         thread_frame.pack_propagate(False)
         thread_frame.configure(width=760, height=70)
         self.selected_thread_count = tk.IntVar()
-        for opt in [1, 2, 4, 8]:
+        for opt in [1, 2, 4, 8, 16]:
             ttk.Radiobutton(thread_frame, text=f"{opt} 线程", variable=self.selected_thread_count, value=opt).pack(side=tk.LEFT, padx=10)
+
+        # 自动选择线程数复选框
+        self.auto_thread_var = tk.BooleanVar(value=self.auto_thread_value)
+        self.auto_thread_check = ttk.Checkbutton(
+            thread_frame,
+            text="自动选择线程数",
+            variable=self.auto_thread_var,
+            command=self.on_auto_thread_toggle
+        )
+        self.auto_thread_check.pack(side=tk.RIGHT, padx=10)
 
         # 版本选择区域
         self.version_frame = ttk.LabelFrame(main_frame, text="可用版本", padding="10")
@@ -790,7 +804,7 @@ class DownloaderApp:
                 if self.auto_update_var.get():
                     self.extract_and_update(save_path)
                 else:
-                    messagebox.showinfo("下载完成", f"下载完成, 文件已保存到: {save_path}", parent=self.download_window)
+                    messagebox.showinfo("下载完成", f"下载完成, 文件已保存到您选择的目录", parent=self.download_window)
 
                 self.download_window.destroy()
                 if hasattr(self, 'update_dialog'):
@@ -875,6 +889,47 @@ class DownloaderApp:
             if self.download_dir.get() and os.path.exists(self.download_dir.get()):
                 self.path_var.set(self.download_dir.get())
             messagebox.showinfo("提示", "已禁用自动更新模式, 请选择离线包下载目录", parent=self.root)
+
+    def select_optimal_thread_count(self):
+        cpu_count = os.cpu_count()
+        
+        if cpu_count <= 2:
+            return 2
+        elif 2 < cpu_count <= 4:
+            return 4
+        elif 4 < cpu_count <= 8:
+            return 8
+        else:
+            return 16
+
+    def on_auto_thread_toggle(self):
+        self.auto_thread_value = self.auto_thread_var.get()
+        if self.auto_thread_value:
+            # 启用自动选择线程数
+            optimal_count = self.select_optimal_thread_count()
+            self.selected_thread_count.set(optimal_count)
+            # 禁用手动选择线程数的单选按钮
+            for child in self.root.winfo_children():
+                if isinstance(child, ttk.Frame):
+                    for grandchild in child.winfo_children():
+                        if isinstance(grandchild, ttk.LabelFrame) and grandchild.cget("text") == "下载线程数":
+                            for great_grandchild in grandchild.winfo_children():
+                                if isinstance(great_grandchild, ttk.Frame):
+                                    for widget in great_grandchild.winfo_children():
+                                        if isinstance(widget, ttk.Radiobutton):
+                                            widget.config(state=tk.DISABLED)
+        else:
+            # 禁用自动选择线程数
+            # 启用手动选择线程数的单选按钮
+            for child in self.root.winfo_children():
+                if isinstance(child, ttk.Frame):
+                    for grandchild in child.winfo_children():
+                        if isinstance(grandchild, ttk.LabelFrame) and grandchild.cget("text") == "下载线程数":
+                            for great_grandchild in grandchild.winfo_children():
+                                if isinstance(great_grandchild, ttk.Frame):
+                                    for widget in great_grandchild.winfo_children():
+                                        if isinstance(widget, ttk.Radiobutton):
+                                            widget.config(state=tk.NORMAL)
 
     def extract_and_update(self, archive_path):
         try:
