@@ -143,7 +143,14 @@ class VersionInfo:
 class DownloaderApp:
     def __init__(self, root):
         self.root = root
-        self.root.title(f"重聚未来离线包下载器(Win7兼容版)   当前版本: v{CURRENT_VERSION} ({CURRENT_VER_CODE})")
+        
+        # 获取系统信息
+        os_name = f"{platform.system()} {platform.release()}-{platform.win32_ver()[2]}"  # 操作系统名称
+        architecture = platform.machine()  # 系统架构
+        kernel_version = platform.version()  # 内核版本
+        
+        # 设置窗口标题
+        self.root.title(f"离线更新包下载器(Win7兼容版)   下载器版本号: v{CURRENT_VERSION} ({CURRENT_VER_CODE})   系统版本: {os_name} 系统架构: {architecture} 内核版本: {kernel_version}")
         
         # 初始化路径变量为空
         self.path_var = tk.StringVar(value="")
@@ -158,7 +165,7 @@ class DownloaderApp:
 
         # 设置主窗口的位置和大小
         self.set_window_position(self.root, "main")
-        self.root.minsize(800, 650)
+        self.root.minsize(1000, 700)
 
         self.download_dir = tk.StringVar(value=DEFAULT_DOWNLOAD_DIR)
         os.makedirs(self.download_dir.get(), exist_ok=True)
@@ -175,6 +182,8 @@ class DownloaderApp:
         self.old_program_path = os.path.abspath(sys.argv[0])
         self.temp_file_path = os.path.join(self.app_dir, "temp_filepath.txt")
         self.update_bat_path = os.path.join(self.app_dir, "update.bat")
+
+        self.thread_radios = []  # 用于存储线程选择的单选按钮
 
         self.create_widgets()
         self.check_for_updates()
@@ -257,13 +266,13 @@ class DownloaderApp:
         else:
             # 如果没有保存的位置信息，使用默认位置并保存
             default_geometry = {
-                'main': "800x650",  # 调整主窗口默认高度
+                'main': "900x700",  # 调整主窗口默认高度
                 'download': "500x400",
                 'update': "400x300",
                 'changelog': "400x300",
                 'secret': "400x300"
             }
-            window.geometry(default_geometry.get(window_name, "800x650"))
+            window.geometry(default_geometry.get(window_name, "900x700"))
             self.save_window_position(window, window_name)
 
     def set_window_icon(self, window):
@@ -283,7 +292,7 @@ class DownloaderApp:
         notice_frame = ttk.LabelFrame(main_frame, text="公告", padding="10")
         notice_frame.pack(fill=tk.X, pady=(0, 10))  
         notice_frame.pack_propagate(False)
-        notice_frame.configure(width=760, height=70)  # 设置宽度和高度
+        notice_frame.configure(width=760, height=80)  # 设置宽度和高度
         self.notice_label = ttk.Label(notice_frame, text="", wraplength=740)
         self.notice_label.pack(fill=tk.X, expand=True)
 
@@ -319,7 +328,7 @@ class DownloaderApp:
         channel_frame = ttk.LabelFrame(main_frame, text="更新通道", padding="10")
         channel_frame.pack(fill=tk.X, pady=10)
         channel_frame.pack_propagate(False)
-        channel_frame.configure(width=760, height=70)
+        channel_frame.configure(width=760, height=80)
         self.channel_var = tk.StringVar()
         for channel_id, description in self.channels:
             ttk.Radiobutton(
@@ -334,16 +343,18 @@ class DownloaderApp:
         thread_frame = ttk.LabelFrame(main_frame, text="下载线程数", padding="10")
         thread_frame.pack(fill=tk.X, pady=10)
         thread_frame.pack_propagate(False)
-        thread_frame.configure(width=760, height=70)
+        thread_frame.configure(width=760, height=80)
         self.selected_thread_count = tk.IntVar()
         for opt in [1, 2, 4, 8, 16]:
-            ttk.Radiobutton(thread_frame, text=f"{opt} 线程", variable=self.selected_thread_count, value=opt).pack(side=tk.LEFT, padx=10)
+            radio = ttk.Radiobutton(thread_frame, text=f"{opt} 线程", variable=self.selected_thread_count, value=opt)
+            radio.pack(side=tk.LEFT, padx=10)
+            self.thread_radios.append(radio)  # 存储线程选择的单选按钮
 
         # 自动选择线程数复选框
         self.auto_thread_var = tk.BooleanVar(value=self.auto_thread_value)
         self.auto_thread_check = ttk.Checkbutton(
             thread_frame,
-            text="自动选择线程数",
+            text="根据硬件性能智能选择线程数",
             variable=self.auto_thread_var,
             command=self.on_auto_thread_toggle
         )
@@ -385,6 +396,10 @@ class DownloaderApp:
         self.copyright_label = ttk.Label(copyright_frame, text="Copyright © 2025 Candy, All Rights Reserved")
         self.copyright_label.pack(side=tk.RIGHT, padx=10)
         self.copyright_label.bind("<Button-1>", self.on_copyright_click)
+
+        # 初始化自动选择线程数的设置
+        if self.auto_thread_var.get():
+            self.on_auto_thread_toggle()
 
     def on_copyright_click(self, event):
         current_time = time.time()
@@ -905,27 +920,13 @@ class DownloaderApp:
             optimal_count = self.select_optimal_thread_count()
             self.selected_thread_count.set(optimal_count)
             # 禁用手动选择线程数的单选按钮
-            for child in self.root.winfo_children():
-                if isinstance(child, ttk.Frame):
-                    for grandchild in child.winfo_children():
-                        if isinstance(grandchild, ttk.LabelFrame) and grandchild.cget("text") == "下载线程数":
-                            for great_grandchild in grandchild.winfo_children():
-                                if isinstance(great_grandchild, ttk.Frame):
-                                    for widget in great_grandchild.winfo_children():
-                                        if isinstance(widget, ttk.Radiobutton):
-                                            widget.config(state=tk.DISABLED)
+            for radio in self.thread_radios:
+                radio.config(state=tk.DISABLED)
         else:
             # 禁用自动选择线程数
             # 启用手动选择线程数的单选按钮
-            for child in self.root.winfo_children():
-                if isinstance(child, ttk.Frame):
-                    for grandchild in child.winfo_children():
-                        if isinstance(grandchild, ttk.LabelFrame) and grandchild.cget("text") == "下载线程数":
-                            for great_grandchild in grandchild.winfo_children():
-                                if isinstance(great_grandchild, ttk.Frame):
-                                    for widget in great_grandchild.winfo_children():
-                                        if isinstance(widget, ttk.Radiobutton):
-                                            widget.config(state=tk.NORMAL)
+            for radio in self.thread_radios:
+                radio.config(state=tk.NORMAL)
 
     def extract_and_update(self, archive_path):
         try:
