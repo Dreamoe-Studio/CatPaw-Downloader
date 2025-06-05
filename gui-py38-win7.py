@@ -42,7 +42,7 @@ def extract_7z_files():
         # 获取资源文件路径（从打包的 .exe 文件中提取）
         src_path = resource_path(file)
         # 目标路径（当前目录）
-        dst_path = os.path.join(current_dir)
+        dst_path = os.path.join(current_dir, file)
         # 如果文件已存在，先删除
         if os.path.exists(dst_path):
             os.remove(dst_path)
