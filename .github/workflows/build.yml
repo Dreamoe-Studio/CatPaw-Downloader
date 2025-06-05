@@ -28,7 +28,7 @@ jobs:
         echo "version=$version" >> $GITHUB_OUTPUT
 
   windows7:
-    name: "Build For Windows7"
+    name: "Windows7"
     needs: extract_versions
     runs-on: windows-2022
     strategy:
@@ -40,27 +40,43 @@ jobs:
       
     - name: Install Python 3.8 (${{ matrix.arch }})
       run: |
+        # 安全安装到用户目录
         $installer = if ("${{ matrix.arch }}" -eq "x86") { "python-3.8.10.exe" } else { "python-3.8.10-amd64.exe" }
-        Invoke-WebRequest "https://www.python.org/ftp/python/3.8.10/$installer" -OutFile python-installer.exe
-        Start-Process python-installer.exe -ArgumentList "/quiet", "InstallAllUsers=1", "PrependPath=1" -Wait
-        Remove-Item python-installer.exe
+        $installerUrl = "https://www.python.org/ftp/python/3.8.10/$installer"
+        
+        # 创建隔离安装目录
+        $installDir = "$env:RUNNER_TEMP\Python38-${{ matrix.arch }}"
+        New-Item -ItemType Directory -Path $installDir -Force
+        
+        # 下载安装程序
+        Invoke-WebRequest $installerUrl -OutFile "$installDir\python-installer.exe"
+        
+        # 安装到临时目录
+        Start-Process "$installDir\python-installer.exe" -ArgumentList "/quiet", "InstallAllUsers=0", "PrependPath=0", "TargetDir=$installDir" -Wait
+        Remove-Item "$installDir\python-installer.exe"
+        
+        # 验证安装
+        & "$installDir\python.exe" --version
+        
+        # 设置步骤级环境变量
+        echo "PYTHON_DIR=$installDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
         
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install pyinstaller requests packaging
+        # 使用隔离的Python
+        & "$env:PYTHON_DIR\python.exe" -m pip install --upgrade pip
+        & "$env:PYTHON_DIR\python.exe" -m pip install pyinstaller requests packaging
         
     - name: Build executable (${{ matrix.arch }})
       run: |
-        pyinstaller --noconsole --onefile `
+        # 使用隔离的PyInstaller
+        & "$env:PYTHON_DIR\Scripts\pyinstaller.exe" --noconsole --onefile `
           --icon=sgw.ico `
           --hidden-import=requests `
           --hidden-import=packaging `
           --add-data "sgw.ico;." `
-          --add-data "7z-x64.exe;." `
-          --add-data "7z-x64.dll;." `
-          --add-data "7z-x86.exe;." `
-          --add-data "7z-x86.dll;." `
+          --add-data "7z.exe;." `
+          --add-data "7z.dll;." `
           --uac-admin gui-py38-win7.py
           
     - name: Rename executable (${{ matrix.arch }})
@@ -76,8 +92,8 @@ jobs:
         name: win7-${{ matrix.arch }}
         path: dist\${{ env.RENAMED_FILE }}
 
-  windows10:
-    name: "Build For Windows8-11"
+  windows:
+    name: "Windows"
     needs: extract_versions
     runs-on: ${{ matrix.runner }}
     strategy:
@@ -111,12 +127,8 @@ jobs:
           --hidden-import=requests `
           --hidden-import=packaging `
           --add-data "lty1.ico;." `
-          --add-data "7z-x64.exe;." `
-          --add-data "7z-x64.dll;." `
-          --add-data "7z-x86.exe;." `
-          --add-data "7z-x86.dll;." `
-          --add-data "7z-arm64.exe;." `
-          --add-data "7z-arm64.dll;." `
+          --add-data "7z.exe;." `
+          --add-data "7z.dll;." `
           --uac-admin gui-py311.py
           
     - name: Rename executable (${{ matrix.arch }})
@@ -130,5 +142,5 @@ jobs:
     - name: Upload artifact (${{ matrix.arch }})
       uses: actions/upload-artifact@v4
       with:
-        name: win10-${{ matrix.arch }}
+        name: win-${{ matrix.arch }}
         path: dist\${{ env.RENAMED_FILE }}
