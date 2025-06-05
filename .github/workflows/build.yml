@@ -71,10 +71,10 @@ jobs:
       run: |
         # 使用隔离的PyInstaller
         & "$env:PYTHON_DIR\Scripts\pyinstaller.exe" --noconsole --onefile `
-          --icon=sgw.ico `
+          --icon=lty3.ico `
           --hidden-import=requests `
           --hidden-import=packaging `
-          --add-data "sgw.ico;." `
+          --add-data "lty3.ico;." `
           --add-data "7z-x64.exe;." `
           --add-data "7z-x64.dll;." `
           --add-data "7z-x86.exe;." `
