@@ -12,6 +12,7 @@ from tkinter import ttk, messagebox, filedialog
 import webbrowser
 import subprocess
 import shutil
+import hashlib
 
 def resource_path(relative_path):
     """获取资源的绝对路径,用于PyInstaller打包后定位资源文件"""
@@ -72,8 +73,8 @@ def delete_7z_files():
 extract_7z_files()
 
 # 配置参数
-CURRENT_VERSION = "1.0.8"  # 当前版本号
-CURRENT_VER_CODE = "1081"  # 当前版本代码
+CURRENT_VERSION = "1.0.9"  # 当前版本号
+CURRENT_VER_CODE = "1090"  # 当前版本代码
 HEADERS = {"User-Agent": f"RF-Py1-Api/{CURRENT_VERSION}"}  # 设置UA
 DEFAULT_DOWNLOAD_DIR = os.path.join(os.getcwd(), "RF-Downloader")  # 默认下载目录为当前目录下的 RF-Downloader 文件夹
 ICON_PATH = resource_path("lty1.ico")   # 应用图标
@@ -134,12 +135,14 @@ class DownloadTracker:
 
 
 class VersionInfo:
-    def __init__(self, version, ver_code, changelog, level, url):
+    def __init__(self, version, ver_code, changelog, level, url, hashb2b, hashb2s):
         self.version = version
         self.ver_code = ver_code
         self.changelog = changelog.replace('\\n', '\n')
         self.level = level
         self.url = url
+        self.hashb2b = hashb2b
+        self.hashb2s = hashb2s
 
 
 class DownloaderApp:
@@ -457,18 +460,22 @@ class DownloaderApp:
             current_changelog = ""
             current_level = None
             current_url = None
+            current_hashb2b = None
+            current_hashb2s = None
             in_changelog = False
 
             for line in response.text.splitlines():
                 line = line.strip()
                 if line.startswith('[') and line.endswith(']'):
                     if current_version:
-                        self.versions.append(VersionInfo(current_version, current_ver_code, current_changelog, current_level, current_url))
+                        self.versions.append(VersionInfo(current_version, current_ver_code, current_changelog, current_level, current_url, current_hashb2b, current_hashb2s))
                         current_changelog = ""
                     current_version = line[1:-1]
                     current_ver_code = None
                     current_level = None
                     current_url = None
+                    current_hashb2b = None
+                    current_hashb2s = None
                     in_changelog = False
                 elif line.startswith('ver='):
                     current_ver_code = line[4:]
@@ -479,11 +486,15 @@ class DownloaderApp:
                     current_level = int(line[6:])
                 elif line.startswith('url='):
                     current_url = line[4:]
+                elif line.startswith('hashb2b='):
+                    current_hashb2b = line[8:]
+                elif line.startswith('hashb2s='):
+                    current_hashb2s = line[8:]
                 elif in_changelog:
                     current_changelog += '\n' + line
 
             if current_version and current_url:
-                self.versions.append(VersionInfo(current_version, current_ver_code, current_changelog, current_level, current_url))
+                self.versions.append(VersionInfo(current_version, current_ver_code, current_changelog, current_level, current_url, current_hashb2b, current_hashb2s))
 
             for widget in self.scrollable_frame.winfo_children():
                 widget.destroy()
@@ -500,7 +511,7 @@ class DownloaderApp:
 
                 style = ""
                 extra_text = ""
-                if version_info.level == 2:
+                if version_info.level ==2 :
                     style = "Warning"
                     extra_text = " ❗ 重大变更版本,谨慎更新"
                 elif version_info.level == 3:
@@ -748,7 +759,7 @@ class DownloaderApp:
             response.raise_for_status()
             total_size = int(response.headers.get('Content-Length', 0))
 
-            if response.status_code == 3004:
+            if response.status_code == 304:
                 print("资源未修改")
                 return
 
@@ -815,11 +826,16 @@ class DownloaderApp:
                             f.write(part_f.read())
                         os.remove(part_file)
 
-                # 如果启用了自动更新，则执行解压操作
-                if self.auto_update_var.get():
-                    self.extract_and_update(save_path)
+                # 校验文件哈希值
+                if self.verify_hash(save_path):
+                    # 如果启用了自动更新，则执行解压操作
+                    if self.auto_update_var.get():
+                        self.extract_and_update(save_path)
+                    else:
+                        messagebox.showinfo("下载完成", f"下载完成, 文件已保存到您选择的目录", parent=self.download_window)
                 else:
-                    messagebox.showinfo("下载完成", f"下载完成, 文件已保存到您选择的目录", parent=self.download_window)
+                    messagebox.showerror("哈希校验失败", "下载的文件哈希校验失败, 文件可能损坏或被篡改", parent=self.download_window)
+                    os.remove(save_path)  # 删除校验失败的文件
 
                 self.download_window.destroy()
                 if hasattr(self, 'update_dialog'):
@@ -1128,6 +1144,30 @@ class DownloaderApp:
                     messagebox.showwarning("错误", "指令错误")
 
             self.developer_button.config(command=check_developer_instruction)
+
+    # 添加哈希校验方法
+    def verify_hash(self, file_path):
+        try:
+            # 根据系统架构选择哈希算法
+            if SYSTEM_ARCH == 'x86':
+                expected_hash = self.selected_version.hashb2s
+                hash_algo = hashlib.blake2s()
+            else:  # x64 或 arm64
+                expected_hash = self.selected_version.hashb2b
+                hash_algo = hashlib.blake2b()
+
+            # 计算文件哈希值
+            with open(file_path, 'rb') as f:
+                while chunk := f.read(8192):
+                    hash_algo.update(chunk)
+            actual_hash = hash_algo.hexdigest()
+
+            # 比较哈希值
+            return actual_hash == expected_hash
+
+        except Exception as e:
+            print(f"哈希校验失败: {str(e)}")
+            return False
 
 
 if __name__ == "__main__":

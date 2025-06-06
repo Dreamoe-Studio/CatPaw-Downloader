@@ -12,6 +12,7 @@ from tkinter import ttk, messagebox, filedialog
 import webbrowser
 import subprocess
 import shutil
+import hashlib
 
 def resource_path(relative_path):
     """获取资源的绝对路径,用于PyInstaller打包后定位资源文件"""
@@ -70,12 +71,12 @@ def delete_7z_files():
 extract_7z_files()
 
 # 配置参数
-CURRENT_VERSION = "1.0.8"  # 当前版本号
-CURRENT_VER_CODE = "1081"  # 当前版本代码
+CURRENT_VERSION = "1.0.9"  # 当前版本号
+CURRENT_VER_CODE = "1090"  # 当前版本代码
 HEADERS = {"User-Agent": f"RF-Py1-Api/{CURRENT_VERSION}"}  # 设置UA
 DEFAULT_DOWNLOAD_DIR = os.path.join(os.getcwd(), "RF-Downloader")  # 默认下载目录为当前目录下的 RF-Downloader 文件夹
-ICON_PATH = resource_path("lty3.ico")   # 应用图标
-CONFIG_PATH = "config_win7.json"  # 保存窗体位置的文件
+ICON_PATH = resource_path("lty1.ico")   # 应用图标
+CONFIG_PATH = "config.json"  # 保存窗体位置的文件
 
 class DownloadTracker:
     def __init__(self, total_size):
@@ -132,12 +133,14 @@ class DownloadTracker:
 
 
 class VersionInfo:
-    def __init__(self, version, ver_code, changelog, level, url):
+    def __init__(self, version, ver_code, changelog, level, url, hashb2b, hashb2s):
         self.version = version
         self.ver_code = ver_code
         self.changelog = changelog.replace('\\n', '\n')
         self.level = level
         self.url = url
+        self.hashb2b = hashb2b  # 添加 hashb2b 字段
+        self.hashb2s = hashb2s  # 添加 hashb2s 字段
 
 
 class DownloaderApp:
@@ -165,7 +168,7 @@ class DownloaderApp:
 
         # 设置主窗口的位置和大小
         self.set_window_position(self.root, "main")
-        self.root.minsize(1000, 700)
+        self.root.minsize(900, 700)
 
         self.download_dir = tk.StringVar(value=DEFAULT_DOWNLOAD_DIR)
         os.makedirs(self.download_dir.get(), exist_ok=True)
@@ -348,7 +351,7 @@ class DownloaderApp:
         for opt in [1, 2, 4, 8, 16]:
             radio = ttk.Radiobutton(thread_frame, text=f"{opt} 线程", variable=self.selected_thread_count, value=opt)
             radio.pack(side=tk.LEFT, padx=10)
-            self.thread_radios.append(radio)  # 存储线程选择的单选按钮
+            self.thread_radios.append(radio)
 
         # 自动选择线程数复选框
         self.auto_thread_var = tk.BooleanVar(value=self.auto_thread_value)
@@ -455,18 +458,22 @@ class DownloaderApp:
             current_changelog = ""
             current_level = None
             current_url = None
+            current_hashb2b = None
+            current_hashb2s = None
             in_changelog = False
 
             for line in response.text.splitlines():
                 line = line.strip()
                 if line.startswith('[') and line.endswith(']'):
                     if current_version:
-                        self.versions.append(VersionInfo(current_version, current_ver_code, current_changelog, current_level, current_url))
+                        self.versions.append(VersionInfo(current_version, current_ver_code, current_changelog, current_level, current_url, current_hashb2b, current_hashb2s))
                         current_changelog = ""
                     current_version = line[1:-1]
                     current_ver_code = None
                     current_level = None
                     current_url = None
+                    current_hashb2b = None
+                    current_hashb2s = None
                     in_changelog = False
                 elif line.startswith('ver='):
                     current_ver_code = line[4:]
@@ -477,11 +484,15 @@ class DownloaderApp:
                     current_level = int(line[6:])
                 elif line.startswith('url='):
                     current_url = line[4:]
+                elif line.startswith('hashb2b='):
+                    current_hashb2b = line[8:]
+                elif line.startswith('hashb2s='):
+                    current_hashb2s = line[8:]
                 elif in_changelog:
                     current_changelog += '\n' + line
 
             if current_version and current_url:
-                self.versions.append(VersionInfo(current_version, current_ver_code, current_changelog, current_level, current_url))
+                self.versions.append(VersionInfo(current_version, current_ver_code, current_changelog, current_level, current_url, current_hashb2b, current_hashb2s))
 
             for widget in self.scrollable_frame.winfo_children():
                 widget.destroy()
@@ -498,7 +509,7 @@ class DownloaderApp:
 
                 style = ""
                 extra_text = ""
-                if version_info.level == 2:
+                if version_info.level ==2 :
                     style = "Warning"
                     extra_text = " ❗ 重大变更版本,谨慎更新"
                 elif version_info.level == 3:
@@ -550,7 +561,7 @@ class DownloaderApp:
         
         # 设置和保存窗口位置
         self.set_window_position(log_window, "changelog")
-        log_window.protocol("WM_DELETE_WINDOW", lambda: self.on_child_closing(log_window, "log_window"))
+        log_window.protocol("WM_DELETE_WINDOW", lambda: self.on_child_closing(log_window, "changelog"))
 
         self.set_window_icon(log_window)
 
@@ -565,7 +576,7 @@ class DownloaderApp:
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         changelog_text.configure(yscrollcommand=scrollbar.set)
 
-        ttk.Button(log_window, text="确定", command=lambda: self.close_window(log_window, "log_window")).pack(pady=10)
+        ttk.Button(log_window, text="确定", command=lambda: self.close_window(log_window, "changelog")).pack(pady=10)
 
     def check_for_updates(self, user_triggered=False):
         try:
@@ -744,7 +755,7 @@ class DownloaderApp:
             response.raise_for_status()
             total_size = int(response.headers.get('Content-Length', 0))
 
-            if response.status_code == 3004:
+            if response.status_code == 304:
                 print("资源未修改")
                 return
 
@@ -811,11 +822,16 @@ class DownloaderApp:
                             f.write(part_f.read())
                         os.remove(part_file)
 
-                # 如果启用了自动更新，则执行解压操作
-                if self.auto_update_var.get():
-                    self.extract_and_update(save_path)
+                # 校验文件哈希值
+                if self.verify_hash(save_path):
+                    # 如果启用了自动更新，则执行解压操作
+                    if self.auto_update_var.get():
+                        self.extract_and_update(save_path)
+                    else:
+                        messagebox.showinfo("下载完成", f"下载完成, 文件已保存到您选择的目录", parent=self.download_window)
                 else:
-                    messagebox.showinfo("下载完成", f"下载完成, 文件已保存到您选择的目录", parent=self.download_window)
+                    messagebox.showerror("哈希校验失败", "下载的文件哈希校验失败, 文件可能损坏或被篡改", parent=self.download_window)
+                    os.remove(save_path)  # 删除校验失败的文件
 
                 self.download_window.destroy()
                 if hasattr(self, 'update_dialog'):
@@ -901,18 +917,6 @@ class DownloaderApp:
                 self.path_var.set(self.download_dir.get())
             messagebox.showinfo("提示", "已禁用自动更新模式, 请选择离线包下载目录", parent=self.root)
 
-    def select_optimal_thread_count(self):
-        cpu_count = os.cpu_count()
-        
-        if cpu_count <= 2:
-            return 2
-        elif 2 < cpu_count <= 4:
-            return 4
-        elif 4 < cpu_count <= 8:
-            return 8
-        else:
-            return 16
-
     def on_auto_thread_toggle(self):
         self.auto_thread_value = self.auto_thread_var.get()
         if self.auto_thread_value:
@@ -927,6 +931,18 @@ class DownloaderApp:
             # 启用手动选择线程数的单选按钮
             for radio in self.thread_radios:
                 radio.config(state=tk.NORMAL)
+
+    def select_optimal_thread_count(self):
+        cpu_count = os.cpu_count()
+        
+        if cpu_count <= 2:
+            return 2
+        elif 2 < cpu_count <= 4:
+            return 4
+        elif 4 < cpu_count <= 8:
+            return 8
+        else:
+            return 16
 
     def extract_and_update(self, archive_path):
         try:
@@ -1067,7 +1083,7 @@ class DownloaderApp:
             "未经授权, 禁止任何个人或组织对本软件进行复制、修改或分发.\n\n"
             "本软件仅供个人学习和研究使用.\n\n"
             "网址: https://www.yra2.com\n\n"
-            "版权声明: 本软件受版权法保护, 未经许可不得擅自使用或传播。侵权必究！"
+            "版权声明: 本软件受版权法保护, 未经许可不得擅自使用或传播, 侵权必究！"
         ))
         copyright_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         copyright_text.configure(state=tk.DISABLED)
@@ -1124,6 +1140,30 @@ class DownloaderApp:
                     messagebox.showwarning("错误", "指令错误")
 
             self.developer_button.config(command=check_developer_instruction)
+
+    # 添加哈希校验方法
+    def verify_hash(self, file_path):
+        try:
+            # 根据系统架构选择哈希算法
+            if SYSTEM_ARCH == 'x86':
+                expected_hash = self.selected_version.hashb2s
+                hash_algo = hashlib.blake2s()
+            else:
+                expected_hash = self.selected_version.hashb2b
+                hash_algo = hashlib.blake2b()
+
+            # 计算文件哈希值
+            with open(file_path, 'rb') as f:
+                while chunk := f.read(8192):
+                    hash_algo.update(chunk)
+            actual_hash = hash_algo.hexdigest()
+
+            # 比较哈希值
+            return actual_hash == expected_hash
+
+        except Exception as e:
+            print(f"哈希校验失败: {str(e)}")
+            return False
 
 
 if __name__ == "__main__":
