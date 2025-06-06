@@ -72,7 +72,7 @@ extract_7z_files()
 
 # 配置参数
 CURRENT_VERSION = "1.0.9"  # 当前版本号
-CURRENT_VER_CODE = "1090"  # 当前版本代码
+CURRENT_VER_CODE = "1091"  # 当前版本代码
 HEADERS = {"User-Agent": f"RF-Py1-Api/{CURRENT_VERSION}"}  # 设置UA
 DEFAULT_DOWNLOAD_DIR = os.path.join(os.getcwd(), "RF-Downloader")  # 默认下载目录为当前目录下的 RF-Downloader 文件夹
 ICON_PATH = resource_path("lty1.ico")   # 应用图标
@@ -230,10 +230,12 @@ class DownloaderApp:
     def save_window_position(self, window, window_name):
         """保存指定窗体的位置和用户选择的目录"""
         try:
+            # 获取窗口的实际宽度和高度，确保不小于最小尺寸
+            width = max(window.winfo_width(), 500)
+            height = max(window.winfo_height(), 300)
             x = window.winfo_x()
             y = window.winfo_y()
-            width = window.winfo_width()
-            height = window.winfo_height()
+
             if window_name not in self.window_positions:
                 self.window_positions[window_name] = {}
             self.window_positions[window_name].update({
@@ -270,15 +272,16 @@ class DownloaderApp:
             'changelog': "400x300",
             'secret': "400x300"
         }
+
         if window_name in self.window_positions:
             config = self.window_positions[window_name]
-            # 避免宽度和高度为0或1的情况
-            width = max(config.get('width', int(default_geometries[window_name].split('x')[0])), 300)
-            height = max(config.get('height', int(default_geometries[window_name].split('x')[1])), 300)
+            width = max(config.get('width', 500), 500)
+            height = max(config.get('height', 300), 300)
             window.geometry(f"{width}x{height}+{config.get('x', 0)}+{config.get('y', 0)}")
         else:
             # 如果没有保存的位置信息，使用默认位置并保存
-            window.geometry(default_geometries.get(window_name, "900x700"))
+            default_geometry = default_geometries.get(window_name, "900x700")
+            window.geometry(default_geometry)
             self.save_window_position(window, window_name)
 
     def set_window_icon(self, window):
@@ -720,9 +723,6 @@ class DownloaderApp:
                 # 下载完成后创建临时文件和更新脚本
                 self.create_update_files(save_path)
                 self.download_window.destroy()
-                if hasattr(self, 'update_dialog'):
-                    self.update_dialog.destroy()
-
                 # 运行更新脚本并退出当前程序
                 try:
                     subprocess.Popen(self.update_bat_path, shell=True)

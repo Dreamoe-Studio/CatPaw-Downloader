@@ -1,3 +1,5 @@
+# gui-py311.py
+
 import os
 import sys
 import time
@@ -74,7 +76,7 @@ extract_7z_files()
 
 # 配置参数
 CURRENT_VERSION = "1.0.9"  # 当前版本号
-CURRENT_VER_CODE = "1090"  # 当前版本代码
+CURRENT_VER_CODE = "1091"  # 当前版本代码
 HEADERS = {"User-Agent": f"RF-Py1-Api/{CURRENT_VERSION}"}  # 设置UA
 DEFAULT_DOWNLOAD_DIR = os.path.join(os.getcwd(), "RF-Downloader")  # 默认下载目录为当前目录下的 RF-Downloader 文件夹
 ICON_PATH = resource_path("lty1.ico")   # 应用图标
@@ -232,10 +234,11 @@ class DownloaderApp:
     def save_window_position(self, window, window_name):
         """保存指定窗体的位置和用户选择的目录"""
         try:
+            width = max(window.winfo_width(), 300)
+            height = max(window.winfo_height(), 300)
             x = window.winfo_x()
             y = window.winfo_y()
-            width = window.winfo_width()
-            height = window.winfo_height()
+
             if window_name not in self.window_positions:
                 self.window_positions[window_name] = {}
             self.window_positions[window_name].update({
@@ -272,25 +275,16 @@ class DownloaderApp:
             'changelog': "400x300",
             'secret': "400x300"
         }
+
         if window_name in self.window_positions:
             config = self.window_positions[window_name]
-            # 避免宽度和高度为0或1的情况
-            width = max(config.get('width', int(default_geometries[window_name].split('x')[0])), 300)
-            height = max(config.get('height', int(default_geometries[window_name].split('x')[1])), 300)
+            width = max(config.get('width', 500), 300)
+            height = max(config.get('height', 300), 300)
             window.geometry(f"{width}x{height}+{config.get('x', 0)}+{config.get('y', 0)}")
         else:
-            # 如果没有保存的位置信息，使用默认位置并保存
-            window.geometry(default_geometries.get(window_name, "900x700"))
+            default_geometry = default_geometries.get(window_name, "900x700")
+            window.geometry(default_geometry)
             self.save_window_position(window, window_name)
-
-    def set_window_icon(self, window):
-        try:
-            if os.path.exists(ICON_PATH):
-                window.iconbitmap(ICON_PATH)
-            else:
-                print(f"图标文件不存在: {ICON_PATH}")
-        except Exception as e:
-            print(f"设置图标失败: {str(e)}")
 
     def create_widgets(self):
         main_frame = ttk.Frame(self.root, padding="20")
@@ -868,7 +862,7 @@ class DownloaderApp:
 
     def update_progress(self, tracker):
         current_time = time.time()
-        if not hasattr(self, 'last_update_time') or current_time - self.last_update_time >= 0.4:
+        if not hasattr(self, 'last_update_time') or current_time - self.last_update_time >= 0.2:
             progress = tracker.get_progress()
             self.progress_bar['value'] = progress['downloaded']
             self.progress_info.config(
@@ -1148,7 +1142,6 @@ class DownloaderApp:
 
             self.developer_button.config(command=check_developer_instruction)
 
-    # 添加哈希校验方法
     def verify_hash(self, file_path):
         try:
             # 根据系统架构选择哈希算法
@@ -1157,7 +1150,7 @@ class DownloaderApp:
                 hash_algo = hashlib.blake2s(digest_size=32)
             else:  # x64 或 arm64
                 expected_hash = self.selected_version.hashb2b
-                hash_algo = hashlib.blake2b(digest_size=32)
+                hash_algo = hashlib.blake2b(daggest_size=32)
 
             # 计算文件哈希值
             with open(file_path, 'rb') as f:
