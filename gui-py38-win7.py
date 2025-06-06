@@ -153,7 +153,7 @@ class DownloaderApp:
         kernel_version = platform.version()  # 内核版本
         
         # 设置窗口标题
-        self.root.title(f"离线更新包下载器(Win7兼容版)   下载器版本号: v{CURRENT_VERSION} ({CURRENT_VER_CODE})   系统版本: {os_name} 系统架构: {architecture} 内核版本: {kernel_version}")
+        self.root.title(f"猫爪下载器(Win7兼容版)   下载器版本号: v{CURRENT_VERSION} ({CURRENT_VER_CODE})   系统版本: {os_name} 系统架构: {architecture} 内核版本: {kernel_version}")
         
         # 初始化路径变量为空
         self.path_var = tk.StringVar(value="")
