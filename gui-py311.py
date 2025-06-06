@@ -1151,10 +1151,10 @@ class DownloaderApp:
             # 根据系统架构选择哈希算法
             if SYSTEM_ARCH == 'x86':
                 expected_hash = self.selected_version.hashb2s
-                hash_algo = hashlib.blake2s()
+                hash_algo = hashlib.blake2s(digest_size=32)
             else:  # x64 或 arm64
                 expected_hash = self.selected_version.hashb2b
-                hash_algo = hashlib.blake2b()
+                hash_algo = hashlib.blake2b(digest_size=32)
 
             # 计算文件哈希值
             with open(file_path, 'rb') as f:
@@ -1163,7 +1163,7 @@ class DownloaderApp:
             actual_hash = hash_algo.hexdigest()
 
             # 比较哈希值
-            return actual_hash == expected_hash
+            return actual_hash.lower() == expected_hash.lower()
 
         except Exception as e:
             print(f"哈希校验失败: {str(e)}")
