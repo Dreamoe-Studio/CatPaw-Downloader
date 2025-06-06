@@ -263,19 +263,22 @@ class DownloaderApp:
 
     def set_window_position(self, window, window_name):
         """设置窗体位置"""
+        default_geometries = {
+            'main': "900x700",
+            'download': "500x400",
+            'update': "400x300",
+            'changelog': "400x300",
+            'secret': "400x300"
+        }
         if window_name in self.window_positions:
             config = self.window_positions[window_name]
-            window.geometry(f"{config['width']}x{config['height']}+{config['x']}+{config['y']}")
+            # 避免宽度和高度为0或1的情况
+            width = max(config.get('width', int(default_geometries[window_name].split('x')[0])), 300)
+            height = max(config.get('height', int(default_geometries[window_name].split('x')[1])), 300)
+            window.geometry(f"{width}x{height}+{config.get('x', 0)}+{config.get('y', 0)}")
         else:
             # 如果没有保存的位置信息，使用默认位置并保存
-            default_geometry = {
-                'main': "900x700",  # 调整主窗口默认高度
-                'download': "500x400",
-                'update': "400x300",
-                'changelog': "400x300",
-                'secret': "400x300"
-            }
-            window.geometry(default_geometry.get(window_name, "900x700"))
+            window.geometry(default_geometries.get(window_name, "900x700"))
             self.save_window_position(window, window_name)
 
     def set_window_icon(self, window):
