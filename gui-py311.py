@@ -288,7 +288,7 @@ class DownloaderApp:
         try:
             if os.path.exists(ICON_PATH):
                 window.iconbitmap(ICON_PATH)
-            else:Add commentMore actions
+            else:
                 print(f"图标文件不存在: {ICON_PATH}")
         except Exception as e:
             print(f"设置图标失败: {str(e)}")
