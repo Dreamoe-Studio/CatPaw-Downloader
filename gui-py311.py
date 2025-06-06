@@ -1,5 +1,3 @@
-# gui-py311.py
-
 import os
 import sys
 import time
@@ -285,6 +283,15 @@ class DownloaderApp:
             default_geometry = default_geometries.get(window_name, "900x700")
             window.geometry(default_geometry)
             self.save_window_position(window, window_name)
+
+    def set_window_icon(self, window):
+        try:
+            if os.path.exists(ICON_PATH):
+                window.iconbitmap(ICON_PATH)
+            else:Add commentMore actions
+                print(f"图标文件不存在: {ICON_PATH}")
+        except Exception as e:
+            print(f"设置图标失败: {str(e)}")
 
     def create_widgets(self):
         main_frame = ttk.Frame(self.root, padding="20")
@@ -862,7 +869,7 @@ class DownloaderApp:
 
     def update_progress(self, tracker):
         current_time = time.time()
-        if not hasattr(self, 'last_update_time') or current_time - self.last_update_time >= 0.2:
+        if not hasattr(self, 'last_update_time') or current_time - self.last_update_time >= 0.4:
             progress = tracker.get_progress()
             self.progress_bar['value'] = progress['downloaded']
             self.progress_info.config(
@@ -1150,7 +1157,7 @@ class DownloaderApp:
                 hash_algo = hashlib.blake2s(digest_size=32)
             else:  # x64 或 arm64
                 expected_hash = self.selected_version.hashb2b
-                hash_algo = hashlib.blake2b(daggest_size=32)
+                hash_algo = hashlib.blake2b(digest_size=32)
 
             # 计算文件哈希值
             with open(file_path, 'rb') as f:

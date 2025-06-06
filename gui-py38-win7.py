@@ -230,7 +230,6 @@ class DownloaderApp:
     def save_window_position(self, window, window_name):
         """保存指定窗体的位置和用户选择的目录"""
         try:
-            # 获取窗口的实际宽度和高度，确保不小于最小尺寸
             width = max(window.winfo_width(), 500)
             height = max(window.winfo_height(), 300)
             x = window.winfo_x()
@@ -279,7 +278,6 @@ class DownloaderApp:
             height = max(config.get('height', 300), 300)
             window.geometry(f"{width}x{height}+{config.get('x', 0)}+{config.get('y', 0)}")
         else:
-            # 如果没有保存的位置信息，使用默认位置并保存
             default_geometry = default_geometries.get(window_name, "900x700")
             window.geometry(default_geometry)
             self.save_window_position(window, window_name)
@@ -723,6 +721,9 @@ class DownloaderApp:
                 # 下载完成后创建临时文件和更新脚本
                 self.create_update_files(save_path)
                 self.download_window.destroy()
+                if hasattr(self, 'update_dialog'):
+                    self.update_dialog.destroy()
+                    
                 # 运行更新脚本并退出当前程序
                 try:
                     subprocess.Popen(self.update_bat_path, shell=True)
@@ -1144,7 +1145,6 @@ class DownloaderApp:
 
             self.developer_button.config(command=check_developer_instruction)
 
-    # 添加哈希校验方法
     def verify_hash(self, file_path):
         try:
             # 根据系统架构选择哈希算法
