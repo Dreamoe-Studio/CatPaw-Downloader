@@ -953,17 +953,11 @@ class DownloaderApp:
 
     def extract_and_update(self, archive_path):
         try:
-            # 检查7z是否可用
-            if not os.path.exists(f"7z-{SYSTEM_ARCH}.exe") or not os.path.exists(f"7z-{SYSTEM_ARCH}.dll"):
-                messagebox.showerror("错误", "7z.exe 或 7z.dll 文件缺失, 请确保它们与本程序在同一目录下", parent=self.download_window)
-                os.remove(archive_path)
-                return
-
             # 获取客户端目录
             client_dir = self.client_dir.get()
 
             # 解压命令
-            extract_cmd = f'7z-{SYSTEM_ARCH}.exe x "{archive_path}" -o"{client_dir}" -y'
+            extract_cmd = f'7z.exe x "{archive_path}" -o"{client_dir}" -y'
 
             # 执行解压
             subprocess.run(extract_cmd, shell=True, check=True)
