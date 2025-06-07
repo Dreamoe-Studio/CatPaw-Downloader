@@ -147,7 +147,6 @@ class DownloadTracker:
             return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
         return f"{int(minutes):02}:{int(seconds):02}"
 
-
 class VersionInfo:
     def __init__(self, version, ver_code, changelog, level, url, hashb2b, hashb2s):
         self.version = version
@@ -157,7 +156,6 @@ class VersionInfo:
         self.url = url
         self.hashb2b = hashb2b
         self.hashb2s = hashb2s
-
 
 class DownloaderApp:
     def __init__(self, root):
@@ -285,7 +283,8 @@ class DownloaderApp:
             'download': "500x400",
             'update': "400x300",
             'changelog': "400x300",
-            'secret': "400x300"
+            'secret': "400x300",
+            'extraction': "500x300"
         }
 
         if window_name in self.window_positions:
@@ -848,7 +847,7 @@ class DownloaderApp:
                 if self.verify_hash(save_path):
                     # 如果启用了自动更新，则执行解压操作
                     if self.auto_update_var.get():
-                        self.extract_and_update(save_path)
+                        self.extract_and_update_with_log(save_path)
                     else:
                         messagebox.showinfo("下载完成", f"下载完成, 文件已保存到您选择的目录", parent=self.download_window)
                 else:
@@ -966,29 +965,71 @@ class DownloaderApp:
         else:
             return 16
 
-    def extract_and_update(self, archive_path):
+    def extract_and_update_with_log(self, archive_path):
         try:
             # 获取客户端目录
             client_dir = self.client_dir.get()
 
-            # 解压命令
-            extract_cmd = f'7z.exe x "{archive_path}" -o"{client_dir}" -y -bb1'
+            # 创建解压日志窗口
+            self.extraction_window = tk.Toplevel(self.root)
+            self.extraction_window.title("解压进度")
+            self.set_window_position(self.extraction_window, "extraction")
+            self.extraction_window.protocol("WM_DELETE_WINDOW", lambda: self.on_child_closing(self.extraction_window, "extraction"))
+            self.set_window_icon(self.extraction_window)
 
-            # 以管理员权限运行解压命令
-            admin_cmd = f'runas /user:Administrator "{extract_cmd}"'
+            log_frame = ttk.Frame(self.extraction_window)
+            log_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-            # 执行解压
-            subprocess.run(admin_cmd, shell=True, check=True)
+            self.extraction_log_text = tk.Text(log_frame, height=15, state=tk.NORMAL, wrap=tk.WORD)
+            self.extraction_log_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-            # 删除下载的压缩包
-            os.remove(archive_path)
+            # 开始解压并显示日志
+            extract_cmd = f'7z.exe x -bb1 "{archive_path}" -o"{client_dir}" -y'
 
-            messagebox.showinfo("更新完成", f"重聚未来客户端已成功更新, 请手动启动客户端", parent=self.download_window)
+            def run_extraction():
+                try:
+                    # 启动7z解压进程并捕获输出
+                    process = subprocess.Popen(
+                        extract_cmd,
+                        shell=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        universal_newlines=True
+                    )
 
-        except subprocess.CalledProcessError as e:
-            messagebox.showerror("解压失败", f"解压过程中发生错误: {str(e)}", parent=self.download_window)
+                    # 读取并显示输出
+                    while True:
+                        output_line = process.stdout.readline()
+                        if output_line == '' and process.poll() is not None:
+                            break
+                        if output_line:
+                            self.extraction_log_text.insert(tk.END, output_line)
+                            self.extraction_log_text.see(tk.END)
+                            self.extraction_window.update()
+
+                    # 等待进程完成
+                    return_code = process.wait()
+                    if return_code != 0:
+                        messagebox.showerror("解压失败", f"解压过程中发生错误，返回状态码: {return_code}", parent=self.extraction_window)
+                        return
+
+                    # 删除下载的压缩包
+                    os.remove(archive_path)
+
+                    messagebox.showinfo("更新完成", "重聚未来客户端已成功更新，请手动启动客户端", parent=self.extraction_window)
+                except Exception as e:
+                    messagebox.showerror("解压失败", f"解压过程中发生错误: {str(e)}", parent=self.extraction_window)
+                finally:
+                    self.extraction_window.destroy()
+
+            # 启动解压线程
+            Thread(target=run_extraction).start()
+
         except Exception as e:
             messagebox.showerror("更新失败", f"更新过程中发生错误: {str(e)}", parent=self.download_window)
+
+    def extract_and_update(self, archive_path):
+        self.extract_and_update_with_log(archive_path)
 
     def on_closing(self):
         """保存主窗体位置并关闭程序"""
@@ -1087,7 +1128,7 @@ class DownloaderApp:
         copyright_window = tk.Toplevel(self.root)
         copyright_window.title("版权信息")
         copyright_window.geometry("500x400")
-        copyright_window.minsize(500, 400)
+        copyright_window.minsize(500, 300)
         copyright_window.transient(self.root)
         copyright_window.grab_set()
 
