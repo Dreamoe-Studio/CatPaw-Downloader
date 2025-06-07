@@ -43,13 +43,16 @@ def extract_7z_files():
         # 获取资源文件路径（从打包的 .exe 文件中提取）
         src_path = resource_path(file)
         # 目标路径（当前目录）
-        dst_path = os.path.join(current_dir, file)
+        dst_path = os.path.join(current_dir, file.replace(f"-{SYSTEM_ARCH}", ""))
         # 如果文件已存在，先删除
         if os.path.exists(dst_path):
             os.remove(dst_path)
         # 复制文件到当前目录
-        shutil.copy(src_path, dst_path)
-        print(f"已释放文件: {file}")
+        if os.path.exists(src_path):
+            shutil.copy(src_path, dst_path)
+            print(f"已成功释放文件: {file}")
+        else:
+            print(f"警告: 资源文件 {src_path} 不存在，无法释放 {file}")
 
 # 删除释放的 7z 文件
 def delete_7z_files():
@@ -59,7 +62,7 @@ def delete_7z_files():
     current_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
     # 删除文件
     for file in files_to_delete:
-        file_path = os.path.join(current_dir, file)
+        file_path = os.path.join(current_dir, file.replace(f"-{SYSTEM_ARCH}", ""))
         if os.path.exists(file_path):
             try:
                 os.remove(file_path)
@@ -71,8 +74,8 @@ def delete_7z_files():
 extract_7z_files()
 
 # 配置参数
-CURRENT_VERSION = "1.0.9"  # 当前版本号
-CURRENT_VER_CODE = "1091"  # 当前版本代码
+CURRENT_VERSION = "1.1.0"  # 当前版本号
+CURRENT_VER_CODE = "1101"  # 当前版本代码
 HEADERS = {"User-Agent": f"RF-Py1-Api/{CURRENT_VERSION}"}  # 设置UA
 DEFAULT_DOWNLOAD_DIR = os.path.join(os.getcwd(), "RF-Downloader")  # 默认下载目录为当前目录下的 RF-Downloader 文件夹
 ICON_PATH = resource_path("lty1.ico")   # 应用图标
