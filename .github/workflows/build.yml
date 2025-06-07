@@ -9,14 +9,14 @@ jobs:
     name: "Extract Version"
     runs-on: ubuntu-latest
     outputs:
-      version_py311: ${{ steps.extract_py314.outputs.version }}
+      version_py311: ${{ steps.extract_py311.outputs.version }}
       version_py38: ${{ steps.extract_py38.outputs.version }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       
     - name: Extract version from gui-py311.py
-      id: extract_py314
+      id: extract_py311
       run: |
         version=$(grep -oP 'CURRENT_VERSION = "\K[^"]+' gui-py311.py)
         echo "version=$version" >> $GITHUB_OUTPUT
@@ -111,10 +111,10 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Setup Python 3.14 (${{ matrix.arch }})
+    - name: Setup Python 3.11 (${{ matrix.arch }})
       uses: actions/setup-python@v5
       with:
-        python-version: "3.14.0-beta.2"
+        python-version: "3.11"
         architecture: ${{ matrix.arch }}
         
     - name: Install dependencies
