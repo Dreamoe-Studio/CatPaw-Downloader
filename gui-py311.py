@@ -87,8 +87,8 @@ def check_7z_files():
 check_7z_files()
 
 # 配置参数
-CURRENT_VERSION = "1.1.0"  # 当前版本号
-CURRENT_VER_CODE = "1101"  # 当前版本代码
+CURRENT_VERSION = "1.1.1"  # 当前版本号
+CURRENT_VER_CODE = "1111"  # 当前版本代码
 HEADERS = {"User-Agent": f"RF-Py1-Api/{CURRENT_VERSION}"}  # 设置UA
 DEFAULT_DOWNLOAD_DIR = os.path.join(os.getcwd(), "RF-Downloader")  # 默认下载目录为当前目录下的 RF-Downloader 文件夹
 ICON_PATH = resource_path("lty1.ico")   # 应用图标
@@ -972,10 +972,13 @@ class DownloaderApp:
             client_dir = self.client_dir.get()
 
             # 解压命令
-            extract_cmd = f'7z.exe x "{archive_path}" -o"{client_dir}" -y'
+            extract_cmd = f'7z.exe x "{archive_path}" -o"{client_dir}" -y -bb1'
+
+            # 以管理员权限运行解压命令
+            admin_cmd = f'runas /user:Administrator "{extract_cmd}"'
 
             # 执行解压
-            subprocess.run(extract_cmd, shell=True, check=True)
+            subprocess.run(admin_cmd, shell=True, check=True)
 
             # 删除下载的压缩包
             os.remove(archive_path)
