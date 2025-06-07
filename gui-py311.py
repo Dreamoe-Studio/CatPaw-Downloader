@@ -847,7 +847,7 @@ class DownloaderApp:
                 if self.verify_hash(save_path):
                     # 如果启用了自动更新，则执行解压操作
                     if self.auto_update_var.get():
-                        self.extract_and_update_with_log(save_path)
+                        self.extract_and_update(save_path)
                     else:
                         messagebox.showinfo("下载完成", f"下载完成, 文件已保存到您选择的目录", parent=self.download_window)
                 else:
@@ -965,7 +965,7 @@ class DownloaderApp:
         else:
             return 16
 
-    def extract_and_update_with_log(self, archive_path):
+    def extract_and_update(self, archive_path):
         try:
             # 获取客户端目录
             client_dir = self.client_dir.get()
@@ -1027,9 +1027,6 @@ class DownloaderApp:
 
         except Exception as e:
             messagebox.showerror("更新失败", f"更新过程中发生错误: {str(e)}", parent=self.download_window)
-
-    def extract_and_update(self, archive_path):
-        self.extract_and_update_with_log(archive_path)
 
     def on_closing(self):
         """保存主窗体位置并关闭程序"""
