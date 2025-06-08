@@ -997,7 +997,7 @@ class DownloaderApp:
                     # 等待进程完成
                     return_code = process.wait()
                     if return_code != 0:
-                        messagebox.showerror("解压失败", f"解压过程中发生错误，返回码: {return_code}", parent=self.extraction_window)
+                        messagebox.showerror("解压失败", f"解压过程中发生错误，返回状态码: {return_code}", parent=self.extraction_window)
                         return
 
                     # 删除下载的压缩包
